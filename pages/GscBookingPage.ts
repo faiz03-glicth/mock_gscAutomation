@@ -74,18 +74,20 @@ export class GscBookingPage {
   }
 
   /**
-   * Logs in with the QA/demo credentials supplied via GSC_TEST_MOBILE_NUMBER
-   * / GSC_TEST_PASSWORD (read from test-data/bookingData.ts - never straight
-   * from process.env here, so credential handling stays in one place). Only
-   * called when GscBookingPage.hasTestCredentials is true. Never logs the
-   * credential values themselves.
+   * Fills the mobile number / password fields with the QA/demo credentials
+   * supplied via GSC_TEST_MOBILE_NUMBER / GSC_TEST_PASSWORD (read from
+   * test-data/bookingData.ts - never straight from process.env here, so
+   * credential handling stays in one place) and submits the login form.
+   * Dismisses the reward-journey promo modal both before and after
+   * submitting, since it has been observed overlaying the form both times.
+   * Never logs the credential values themselves. Does not assert what comes
+   * next - callers decide what the correct post-login screen is.
    */
-  async logIn(): Promise<void> {
+  private async submitLoginForm(): Promise<void> {
     if (!credentials.isConfigured) {
-      throw new Error('logIn() called without GSC_TEST_MOBILE_NUMBER / GSC_TEST_PASSWORD configured.');
+      throw new Error('submitLoginForm() called without GSC_TEST_MOBILE_NUMBER / GSC_TEST_PASSWORD configured.');
     }
 
-    // The reward-journey modal has been observed overlaying the login form.
     await this.dismissRewardModal();
 
     const mobileField = this.page.getByRole('textbox').first();
@@ -95,14 +97,29 @@ export class GscBookingPage {
     await passwordField.fill(credentials.password);
     await this.page.getByRole('button', { name: 'Login', exact: true }).click();
 
-    // Dismiss the modal here - BEFORE asserting the seat map is visible -
-    // since it has been observed reappearing immediately post-login and
-    // would otherwise hide that assertion's target from the a11y tree.
     await this.dismissRewardModal(8_000);
+  }
 
+  /**
+   * Logs in mid-booking, where the next expected screen is the seat map
+   * (used by the booking-flow specs, which reach the login form after
+   * clicking a showtime).
+   */
+  async logIn(): Promise<void> {
+    await this.submitLoginForm();
     await expect(this.page.getByText('Seat(s) Selection', { exact: false })).toBeVisible({
       timeout: 30_000,
     });
+  }
+
+  /**
+   * Logs in from a login form reached directly (e.g. clicking "Sign In" on
+   * the homepage), where there is no seat map to wait for - success is
+   * simply the login form itself going away.
+   */
+  async logInFromLoginForm(): Promise<void> {
+    await this.submitLoginForm();
+    await expect(this.page.getByRole('heading', { name: 'Log In' })).not.toBeVisible({ timeout: 15_000 });
   }
 
   // ---------------------------------------------------------------------

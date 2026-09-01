@@ -4,9 +4,13 @@
 
 # Dependencies
 node_modules/
+dashboard/node_modules/
 
 # Playwright output
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Dashboard build output
+dashboard/dist/
