@@ -124,12 +124,31 @@ export class GscHomePage {
     await input.fill(query);
   }
 
-  /** Clicks a search result whose accessible name matches `titlePattern`. */
+  /**
+   * Clicks a search result whose accessible name matches `titlePattern`.
+   *
+   * The search overlay itself doesn't auto-close once a result navigates the
+   * page (confirmed live: a `div.search-popup...show` was left mounted,
+   * full-viewport and `position: fixed`, intercepting pointer events on the
+   * destination page - e.g. blocking a "Watch Trailer" click). It exposes no
+   * accessible role/name of its own to dismiss directly, so this presses
+   * Escape (the conventional way to close this kind of overlay) and, if it's
+   * somehow still open, falls back to a CSS-based check purely to confirm
+   * it's gone before handing control back - never used for a core assertion,
+   * only this cleanup.
+   */
   async openSearchResult(titlePattern: RegExp): Promise<void> {
     const result = this.page.getByRole('link', { name: titlePattern }).first();
     await expect(result, `Expected a search result matching ${titlePattern}`).toBeVisible({ timeout: 10_000 });
     await result.click();
     await this.page.waitForLoadState('domcontentloaded');
+
+    await this.page.keyboard.press('Escape');
+    const overlay = this.page.locator('.search-popup.show');
+    if (await overlay.isVisible().catch(() => false)) {
+      await this.searchToggle().click().catch(() => {});
+    }
+    await overlay.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
   }
 
   /**
