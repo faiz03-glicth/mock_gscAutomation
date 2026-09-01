@@ -1,0 +1,34 @@
+{
+  "name": "mock_gscautomation",
+  "version": "1.0.0",
+  "description": "Playwright + TypeScript UI automation demo for Golden Screen Cinemas Malaysia (gsc.com.my)",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report",
+    "test:browse": "playwright test tests/browse-and-select.spec.ts --headed",
+    "test:showtime": "playwright test tests/select-showtime.spec.ts --headed",
+    "test:booking": "playwright test tests/continue-booking.spec.ts --headed",
+    "test:negative": "playwright test tests/negative-validation.spec.ts --headed",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faiz03-glicth/mock_gscAutomation.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/faiz03-glicth/mock_gscAutomation/issues"
+  },
+  "homepage": "https://github.com/faiz03-glicth/mock_gscAutomation#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.0",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.5.0"
+  }
+}
