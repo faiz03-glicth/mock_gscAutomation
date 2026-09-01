@@ -31,6 +31,108 @@ export class GscHomePage {
   }
 
   /**
+   * The homepage's own "Sign In" / "Login" control (header nav), as opposed
+   * to the login form GSC also shows mid-booking when an anonymous visitor
+   * tries to select a showtime. Matched by accessible name pattern rather
+   * than exact text since the live label hasn't been independently
+   * confirmed - if this doesn't match on your run, use
+   * `npx playwright codegen https://www.gsc.com.my/` to find the real
+   * accessible name/role and adjust this pattern.
+   */
+  private signInControl() {
+    return this.page
+      .getByRole('link', { name: /sign in|log in|login/i })
+      .or(this.page.getByRole('button', { name: /sign in|log in|login/i }))
+      .first();
+  }
+
+  /**
+   * Clicks the homepage's Sign In / Login control and returns whichever
+   * `Page` ends up showing the login form.
+   *
+   * The real "Sign In" link observed on the live site points at
+   * `https://epaymentwebapp.gsc.com.my/profile` - a different origin from
+   * the marketing site, exactly like the "Buy Now" links `selectAvailableMovie()`
+   * already has to handle above. GSC opens links to that separate origin in
+   * a new tab, so a plain `.click()` on the original `page` can leave it
+   * sitting on the homepage while the login form actually loads in a
+   * different tab - which is what caused `verifyLoginRequired()` to time
+   * out looking for a "Log In" heading that was never on `page` at all.
+   *
+   * Following the same href/target-reading approach as
+   * `selectAvailableMovie()` (rather than a bare `.click()`) avoids that:
+   * it reads the link's real destination and opens it explicitly, in a new
+   * tab when `target="_blank"`, and returns that Page so the caller acts on
+   * the right one.
+   */
+  async clickSignIn(): Promise<Page> {
+    const signIn = this.signInControl();
+    await expect(signIn, 'Expected a Sign In / Login control on the GSC homepage').toBeVisible();
+
+    const href = await signIn.getAttribute('href');
+    if (!href) {
+      // No href (a JS-driven control rather than a real link) - fall back to
+      // a real click, watching for a new tab it might open.
+      const newPagePromise = this.page.context().waitForEvent('page', { timeout: 5_000 }).catch(() => null);
+      await signIn.click();
+      const newPage = await newPagePromise;
+      if (newPage) {
+        await newPage.waitForLoadState('domcontentloaded');
+      }
+      return newPage ?? this.page;
+    }
+
+    const opensNewTab = (await signIn.getAttribute('target')) === '_blank';
+    const destination = new URL(href, this.page.url()).toString();
+
+    const targetPage = opensNewTab ? await this.page.context().newPage() : this.page;
+    await targetPage.goto(destination);
+    await targetPage.waitForLoadState('domcontentloaded');
+    return targetPage;
+  }
+
+  /**
+   * The header's search trigger/input. GSC (like most cinema sites) is
+   * expected to hide a text input behind a search icon button until clicked
+   * - this opens it first if needed, then returns the now-visible input.
+   * Not yet confirmed against the live site - see the class-level note.
+   */
+  private searchToggle() {
+    return this.page
+      .getByRole('button', { name: /search/i })
+      .or(this.page.getByRole('link', { name: /search/i }))
+      .first();
+  }
+
+  private searchInput() {
+    return this.page
+      .getByRole('searchbox')
+      .or(this.page.getByRole('textbox', { name: /search/i }))
+      .or(this.page.getByPlaceholder(/search/i))
+      .first();
+  }
+
+  /** Opens the search box (if hidden behind a toggle) and types `query` into it. */
+  async searchMovies(query: string): Promise<void> {
+    const toggle = this.searchToggle();
+    if (await toggle.isVisible().catch(() => false)) {
+      await toggle.click();
+    }
+
+    const input = this.searchInput();
+    await expect(input, 'Expected a movie search input on the GSC homepage').toBeVisible({ timeout: 10_000 });
+    await input.fill(query);
+  }
+
+  /** Clicks a search result whose accessible name matches `titlePattern`. */
+  async openSearchResult(titlePattern: RegExp): Promise<void> {
+    const result = this.page.getByRole('link', { name: titlePattern }).first();
+    await expect(result, `Expected a search result matching ${titlePattern}`).toBeVisible({ timeout: 10_000 });
+    await result.click();
+    await this.page.waitForLoadState('domcontentloaded');
+  }
+
+  /**
    * A "Buy Now" href that includes the movie's slug in the path, e.g.
    * `/showtime-by-movies/6276/chelot?id=6276`. GSC renders the *same* movie
    * with two different "Buy Now" href shapes in different homepage sections:

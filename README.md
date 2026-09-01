@@ -7,6 +7,12 @@ This is a demonstration project, not a purchasing tool: **no test ever
 completes a purchase**. Every booking-flow test stops at the review/checkout
 screen, before the "Checkout & Pay" button is clicked.
 
+**Working on this repo with an AI assistant?** Read [`CLAUDE.md`](./CLAUDE.md)
+first (hard rules — no real purchases, no hardcoded credentials, no
+unverified selectors presented as confirmed) and
+[`AI_GUIDELINES.md`](./AI_GUIDELINES.md) for architecture notes and
+conventions.
+
 ## Prerequisites
 
 - Node.js 18 or newer (Node 20+ recommended)
@@ -45,6 +51,7 @@ session from the GSC homepage, so any of them can be run alone, in any order,
 without editing any source file:
 
 ```bash
+npx playwright test tests/login.spec.ts --headed
 npx playwright test tests/browse-and-select.spec.ts --headed
 npx playwright test tests/select-showtime.spec.ts --headed
 npx playwright test tests/continue-booking.spec.ts --headed
@@ -54,6 +61,7 @@ npx playwright test tests/negative-validation.spec.ts --headed
 Equivalent npm scripts are provided:
 
 ```bash
+npm run test:login
 npm run test:browse
 npm run test:showtime
 npm run test:booking
@@ -78,6 +86,19 @@ Screenshots are also written directly to
 independent of the report.
 
 ## Test coverage
+
+### `login.spec.ts` — Log in to a GSC account
+Standalone login coverage. GSC has no independent login URL to load directly —
+the login gate only appears once an anonymous visitor tries to select a
+showtime — so this test drives movie → date → showtime selection just far
+enough to reach that gate, then focuses on the login behaviour itself: without
+a QA/demo account configured it verifies, with a real assertion, that GSC
+correctly requires authentication and stops there; with
+`GSC_TEST_MOBILE_NUMBER` / `GSC_TEST_PASSWORD` configured, it logs in and
+verifies the session actually reaches the seat map. Every other spec in this
+project performs its own login inline as part of its own flow — this file
+exists to test login on its own, independent of any particular booking
+journey.
 
 ### 1. `browse-and-select.spec.ts` — Browse and select an available movie/cinema
 Loads the GSC homepage, verifies it rendered, then **discovers** a movie that
@@ -172,6 +193,7 @@ gsc-playwright/
 │   ├── GscShowtimesPage.ts   # date + cinema/showtime selection
 │   └── GscBookingPage.ts     # login gate, seats, upsells, review/checkout
 ├── tests/
+│   ├── login.spec.ts
 │   ├── browse-and-select.spec.ts
 │   ├── select-showtime.spec.ts
 │   ├── continue-booking.spec.ts
@@ -209,3 +231,138 @@ the same tab or a new tab depending on context, so
 `GscHomePage.selectAvailableMovie()` races `context.waitForEvent('page')`
 against the click and transparently returns whichever `Page` object ends up
 showing the booking app.
+
+## UI Automation Dashboard
+
+Alongside the four Playwright specs, this repo includes a small local
+dashboard for triggering them by clicking a button instead of the command
+line: a Node/Express backend that spawns the real Playwright CLI, and a
+React/Vite frontend that shows live status.
+
+### Architecture
+
+```text
+Dashboard (React) --poll GET /api/tests--> Node/Express API --spawn--> npx playwright test <spec> --headed
+     ^                                            |
+     |                                            v
+     +----------- artifacts (report/screenshots/video) served from disk
+```
+
+- **The React UI never runs Playwright itself.** Every "Run Test" click is an
+  HTTP `POST` to the backend; the backend is the only thing that spawns a
+  process.
+- **Tests always run headed, in real Chromium**, against the live GSC site —
+  the same specs described above, unchanged. There is no headless mode in the
+  dashboard; you will see the browser window open and drive itself.
+- **The frontend never sends a file path or shell command.** Each "Run Test"
+  request carries only a fixed test id (`browse-and-select`,
+  `select-showtime`, `continue-booking`, `negative-validation`); the backend
+  resolves that id to a spec file **only** via the hardcoded table in
+  `server/testDefinitions.ts`. There is no code path from an HTTP request to
+  an arbitrary command — the backend spawns `npx playwright test <fixed path>
+  --headed` with a fixed argv array, never a shell string built from request
+  input.
+- **No database, no persistence.** Test status lives in an in-memory `Map` in
+  the backend process; restarting the backend resets every test to
+  `NOT_RUN`.
+- **No secrets reach the dashboard.** `GSC_TEST_MOBILE_NUMBER` /
+  `GSC_TEST_PASSWORD` are read by the Playwright process itself (via
+  `.env` → `test-data/bookingData.ts`, exactly as described above); the
+  Express API never reads, forwards, or exposes them to the frontend.
+- **No purchase is ever triggered** — the dashboard runs the exact same specs
+  that already stop before "Checkout & Pay".
+- **Only one test runs at a time.** Starting a test while another is
+  `RUNNING` (individually or via "Run All Tests") is rejected with HTTP 409 —
+  this keeps a single visible Chromium window and a single GSC session
+  un-contended.
+
+### Install and run
+
+```bash
+npm run install:all   # installs both the root project and dashboard/
+npm run dev            # starts the backend (:3000) and dashboard (:5173) together
+```
+
+Then open http://localhost:5173. The dashboard's dev server proxies
+`/api/*` and `/artifacts/*` to the backend on port 3000 (see
+`dashboard/vite.config.ts`), so no separate configuration is needed.
+
+To run the two halves separately:
+
+```bash
+npm run server:dev     # backend only, auto-restarts on change (tsx watch)
+npm run dashboard      # frontend only
+```
+
+### Using the dashboard
+
+- The pipeline strip at the top shows every test as a connected node,
+  colored gray (not run) / blue (running) / green (passed) / red (failed) —
+  click a node to highlight and scroll to it further down the page.
+- Each test also has its own card with a **Run Test** button.
+- **Run All Tests** runs every test back-to-back (never in parallel) and the
+  pipeline updates automatically as each one finishes.
+- Below the cards, **All Results** lists every test's full result together
+  — status, start/end timestamps, duration, fixed `Browser: Chromium` /
+  `Mode: Headed`, a link to that run's Playwright HTML report, inline
+  screenshot and video previews, a collapsible raw log tail, and — on
+  failure — the captured error text. All of this is always visible for
+  every test at once; clicking a pipeline node or card only scrolls to and
+  highlights that test's entry, it never hides the others.
+- Live updates are polling-based (every 1.5s via `GET /api/tests`); there is
+  no WebSocket connection.
+- Each run gets its own isolated output/report folder on disk
+  (`test-results/runs/<id>/`, `playwright-report/runs/<id>/`), so running a
+  second test never deletes or overwrites an earlier test's screenshots,
+  video, or report — every entry in **All Results** keeps working links for
+  the rest of the session.
+
+### API endpoints
+
+| Method | Path                          | Purpose                                              |
+| ------ | ----------------------------- | ----------------------------------------------------- |
+| GET    | `/api/tests`                  | All tests with their latest known status              |
+| POST   | `/api/tests/:testId/run`      | Start one test (404 unknown id, 409 already running)  |
+| POST   | `/api/tests/run-all`          | Start all tests sequentially                          |
+| GET    | `/api/tests/:testId/status`   | Current status of one test                            |
+| GET    | `/api/tests/:testId/result`   | Same record as `/status` (kept as a distinct route for clarity) |
+
+Static artifacts are served at `/artifacts/test-results/...` and
+`/artifacts/playwright-report/...`, matching the `reportPath` /
+`screenshotPaths` / `videoPaths` values returned in each test's record.
+
+### Project structure (dashboard additions)
+
+```text
+gsc-playwright/
+├── server/
+│   ├── index.ts            # Express app + routes
+│   ├── testRunner.ts        # spawns Playwright, tracks in-memory execution state
+│   ├── testDefinitions.ts   # the ONLY id → spec file mapping
+│   └── types.ts
+└── dashboard/
+    ├── index.html
+    ├── vite.config.ts        # dev-server proxy for /api and /artifacts
+    ├── tsconfig.json
+    └── src/
+        ├── main.tsx
+        ├── App.tsx
+        ├── App.css
+        ├── components/
+        │   ├── Pipeline.tsx
+        │   ├── StatusBadge.tsx
+        │   ├── TestCaseCard.tsx
+        │   ├── TestDetails.tsx
+        │   └── ResultsLog.tsx   # combined list of every test's result
+        ├── services/api.ts
+        └── types/test.ts
+```
+
+### Limitation carried over from the specs themselves
+
+Because GSC is a live site, "Run Test" can occasionally fail for reasons
+unrelated to the dashboard — a movie, date, or showtime that was available a
+moment ago may no longer be by the time a run starts. This is the same
+dynamic-availability behavior described above for the specs directly; the
+dashboard surfaces it as a normal `FAILED` status with the real Playwright
+error in the detail panel, rather than hiding it.

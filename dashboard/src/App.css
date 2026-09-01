@@ -1,0 +1,375 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f1115;
+  color: #e6e8eb;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.app__header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.app__run-all-button {
+  background: #2f81f7;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app__run-all-button:disabled {
+  background: #3a3f47;
+  cursor: not-allowed;
+}
+
+.app__error {
+  background: #3a1d1d;
+  border: 1px solid #a83b3b;
+  color: #ff9a9a;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+/* Pipeline (GitLab-CI style) */
+
+.pipeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding: 20px 4px 28px;
+  margin-bottom: 12px;
+}
+
+.pipeline__step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px;
+}
+
+.pipeline__node {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #3a3f47;
+  background: #1c1f26;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pipeline__node--not_run {
+  border-color: #6b7280;
+}
+
+.pipeline__node--running {
+  border-color: #2f81f7;
+  box-shadow: 0 0 0 4px rgba(47, 129, 247, 0.25);
+  animation: pulse 1.2s infinite;
+}
+
+.pipeline__node--passed {
+  border-color: #3fb950;
+}
+
+.pipeline__node--failed {
+  border-color: #f85149;
+}
+
+.pipeline__node--selected {
+  outline: 2px solid #e6e8eb;
+  outline-offset: 3px;
+}
+
+.pipeline__node-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pipeline__node--not_run .pipeline__node-icon {
+  background: #6b7280;
+}
+.pipeline__node--running .pipeline__node-icon {
+  background: #2f81f7;
+}
+.pipeline__node--passed .pipeline__node-icon {
+  background: #3fb950;
+}
+.pipeline__node--failed .pipeline__node-icon {
+  background: #f85149;
+}
+
+.pipeline__label {
+  margin-top: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.pipeline__connector {
+  position: absolute;
+  top: 20px;
+  left: calc(50% + 20px);
+  width: calc(100% + 0px);
+  height: 2px;
+  background: #3a3f47;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(47, 129, 247, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(47, 129, 247, 0.1);
+  }
+}
+
+/* Status badge */
+
+.status-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+.status-badge--not_run {
+  background: #2a2d33;
+  color: #9aa1ab;
+}
+.status-badge--running {
+  background: rgba(47, 129, 247, 0.15);
+  color: #6cabff;
+}
+.status-badge--passed {
+  background: rgba(63, 185, 80, 0.15);
+  color: #6fdd82;
+}
+.status-badge--failed {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff8c86;
+}
+
+/* Test case cards - a wrapping grid of "Run Test" cards above the combined results log */
+
+.app__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.test-card {
+  background: #1c1f26;
+  border: 1px solid #2a2d33;
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.test-card--selected {
+  border-color: #2f81f7;
+}
+
+.test-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.test-card__header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.test-card__description {
+  font-size: 13px;
+  color: #9aa1ab;
+  margin: 8px 0;
+}
+
+.test-card__meta {
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.test-card__run-button {
+  background: #262a32;
+  border: 1px solid #3a3f47;
+  color: #e6e8eb;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.test-card__run-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Combined results log - every test's result, listed together (see ResultsLog.tsx) */
+
+.results-log {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.results-log__title {
+  font-size: 15px;
+  color: #9aa1ab;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.results-log__item {
+  background: #1c1f26;
+  border: 1px solid #2a2d33;
+  border-radius: 8px;
+  padding: 18px 20px;
+  scroll-margin-top: 16px;
+}
+
+.results-log__item--selected {
+  border-color: #2f81f7;
+}
+
+.test-details h2 {
+  margin-top: 0;
+  font-size: 17px;
+}
+
+.test-details__description {
+  color: #9aa1ab;
+  font-size: 13px;
+}
+
+.test-details__grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 13px;
+  margin: 16px 0;
+}
+
+.test-details__grid dt {
+  color: #6b7280;
+}
+
+.test-details__grid dd {
+  margin: 0;
+}
+
+.test-details__error {
+  background: #3a1d1d;
+  border: 1px solid #a83b3b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.test-details__error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.test-details__artifacts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.test-details__report-link {
+  color: #6cabff;
+  align-self: flex-start;
+}
+
+.test-details__artifact {
+  margin: 0;
+}
+
+.test-details__artifact figcaption {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.test-details__artifact img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 6px;
+  border: 1px solid #2a2d33;
+}
+
+.test-details__artifact video {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  border-radius: 6px;
+  border: 1px solid #2a2d33;
+  background: #000;
+}
+
+.test-details__no-artifacts {
+  color: #6b7280;
+}
+
+.test-details__logs button {
+  background: none;
+  border: 1px solid #3a3f47;
+  color: #e6e8eb;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.test-details__log-tail {
+  background: #0b0d11;
+  border: 1px solid #2a2d33;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 11px;
+  max-height: 300px;
+  overflow: auto;
+  margin-top: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

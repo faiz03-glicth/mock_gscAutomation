@@ -7,11 +7,21 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:report": "playwright show-report",
+    "test:login": "playwright test tests/login.spec.ts --headed",
     "test:browse": "playwright test tests/browse-and-select.spec.ts --headed",
     "test:showtime": "playwright test tests/select-showtime.spec.ts --headed",
     "test:booking": "playwright test tests/continue-booking.spec.ts --headed",
     "test:negative": "playwright test tests/negative-validation.spec.ts --headed",
-    "typecheck": "tsc --noEmit"
+    "test:trailer": "playwright test tests/search-movie-trailer.spec.ts --headed",
+    "typecheck": "tsc --noEmit",
+    "install:all": "npm install && npm install --prefix dashboard",
+    "server": "tsx server/index.ts",
+    "server:dev": "tsx watch server/index.ts",
+    "dashboard": "npm run dev --prefix dashboard",
+    "dev": "concurrently -n server,dashboard -c blue,magenta \"npm run server:dev\" \"npm run dashboard\"",
+    "typecheck:server": "tsc --noEmit",
+    "typecheck:dashboard": "tsc --noEmit -p dashboard/tsconfig.json",
+    "typecheck:all": "npm run typecheck:server && npm run typecheck:dashboard"
   },
   "repository": {
     "type": "git",
@@ -27,8 +37,14 @@
   "homepage": "https://github.com/faiz03-glicth/mock_gscAutomation#readme",
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^26.4.0",
+    "concurrently": "^9.0.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.0"
   }
 }
